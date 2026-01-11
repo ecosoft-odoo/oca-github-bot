@@ -3,7 +3,7 @@
 
 import re
 
-from .tasks import merge_bot, migration_issue_bot, rebase_bot
+from .tasks import merge_bot, migration_issue_bot, rebase_bot, tag_bot
 
 BOT_COMMAND_RE = re.compile(
     # Do not start with > (Github comment), not consuming it
@@ -63,6 +63,8 @@ class BotCommand:
             return BotCommandRebase(name, options)
         elif name == "migration":
             return BotCommandMigrationIssue(name, options)
+        elif name == "tag":
+            return BotCommandTag(name, options)
         else:
             raise InvalidCommandError(name)
 
@@ -116,6 +118,21 @@ class BotCommandMigrationIssue(BotCommand):
     def delay(self, org, repo, pr, username, dry_run=False):
         migration_issue_bot.migration_issue_start.delay(
             org, repo, pr, username, module=self.module, dry_run=dry_run
+        )
+
+
+class BotCommandTag(BotCommand):
+    label_name = None  # mandatory str: label name
+
+    def parse_options(self, options):
+        if len(options) == 1:
+            self.label_name = options[0]
+        else:
+            raise InvalidOptionsError(self.name, options)
+
+    def delay(self, org, repo, pr, username, dry_run=False):
+        tag_bot.tag_bot_add_label.delay(
+            org, repo, pr, username, label_name=self.label_name, dry_run=dry_run
         )
 
 
